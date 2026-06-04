@@ -1,9 +1,10 @@
-export type DateRangePreset = "7d" | "30d" | "90d" | "all";
+export type DateRangePreset = "today" | "7d" | "30d" | "90d" | "all";
 
 export const DATE_RANGE_PRESETS: {
   value: DateRangePreset;
   label: string;
 }[] = [
+  { value: "today", label: "Today" },
   { value: "7d", label: "Last 7 days" },
   { value: "30d", label: "Last 30 days" },
   { value: "90d", label: "Last 90 days" },
@@ -22,6 +23,11 @@ export function dateRangeBounds(preset: DateRangePreset): {
   }
 
   const since = new Date(until);
+  if (preset === "today") {
+    since.setHours(0, 0, 0, 0);
+    return { since, until };
+  }
+
   const days = preset === "7d" ? 7 : preset === "30d" ? 30 : 90;
   since.setDate(since.getDate() - (days - 1));
   since.setHours(0, 0, 0, 0);
@@ -30,6 +36,8 @@ export function dateRangeBounds(preset: DateRangePreset): {
 
 export function chartDaysForPreset(preset: DateRangePreset): number {
   switch (preset) {
+    case "today":
+      return 1;
     case "7d":
       return 7;
     case "30d":
@@ -54,6 +62,7 @@ export function isWithinDateRange(
 }
 
 export function formatDateRangeLabel(preset: DateRangePreset): string {
+  if (preset === "today") return "Today";
   const { since, until } = dateRangeBounds(preset);
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -71,7 +80,13 @@ export function formatDateRangeLabel(preset: DateRangePreset): string {
 
 /** Map toolbar filter string to preset (legacy "30d" default). */
 export function toolbarDateToPreset(value: string): DateRangePreset {
-  if (value === "7d" || value === "30d" || value === "90d" || value === "all") {
+  if (
+    value === "today" ||
+    value === "7d" ||
+    value === "30d" ||
+    value === "90d" ||
+    value === "all"
+  ) {
     return value;
   }
   return "30d";

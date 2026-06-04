@@ -117,10 +117,12 @@ export function PublisherIntegrationClient({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        <h2 className="text-[13px] font-semibold">Popup: submit button id</h2>
+        <h2 className="text-[13px] font-semibold">Popup: trigger button id</h2>
         <p className="mt-1 text-[12px] text-muted">
-          Only needed for the popup format. Must match the id on your HTML
-          button.
+          The HTML <code className="font-mono text-[11px]">id</code> of the
+          button that should open the popup when clicked — must match exactly
+          (e.g. <code className="font-mono text-[11px]">button-ada45a05</code>
+          , not a different button on the page).
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <input

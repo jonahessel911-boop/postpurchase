@@ -1,8 +1,14 @@
 import type { ClickPlacement } from "@/lib/types";
 
-/** Base path for click tracking on this app (records click → redirects to advertiser). */
+/** Base path for click tracking (records click → redirects to advertiser). */
 export function getClickApiBase(): string {
-  return `${getAppOrigin()}/api/click`;
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin.replace(/\/+$/, "");
+    if (origin && !/^https?:\/\/localhost(\b|:)/i.test(origin)) {
+      return `${origin}/api/click`;
+    }
+  }
+  return `${getPublisherPlatformOrigin()}/api/click`;
 }
 
 export function normalizeSiteUrl(url: string): string {

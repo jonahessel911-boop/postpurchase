@@ -208,6 +208,31 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
       });
   }
 
+  function resolveTriggerElement(idOrSelector) {
+    if (!idOrSelector) return null;
+    var raw = String(idOrSelector).trim();
+    if (!raw) return null;
+    var el = document.getElementById(raw);
+    if (el) return el;
+    try {
+      return document.querySelector(raw.charAt(0) === '#' ? raw : '#' + raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function bindPopupTrigger(el, partnerId, opts) {
+    if (!el || el.getAttribute('data-pp-popup-bound') === '1') return false;
+    el.setAttribute('data-pp-popup-bound', '1');
+    el.addEventListener('click', function (ev) {
+      if (opts.preventNavigate !== false && el.tagName === 'A') {
+        ev.preventDefault();
+      }
+      openPopup(partnerId, opts);
+    });
+    return true;
+  }
+
   function attachSubmit(partnerId, opts) {
     opts = opts || {};
     var id = opts.submitElementId || opts.elementId;
@@ -215,14 +240,41 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
       console.error('[PostPurchase] submitElementId is required for popup');
       return;
     }
-    var el = document.getElementById(id);
-    if (!el) {
-      console.error('[PostPurchase] Submit element not found: #' + id);
-      return;
+    var ids = String(id).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    var maxWait = opts.attachTimeoutMs || 30000;
+    var started = Date.now();
+    var boundAny = false;
+
+    function tryAttach() {
+      var pending = [];
+      ids.forEach(function (oneId) {
+        var el = resolveTriggerElement(oneId);
+        if (el && bindPopupTrigger(el, partnerId, opts)) {
+          boundAny = true;
+        } else if (!el) {
+          pending.push(oneId);
+        }
+      });
+
+      if (!pending.length) {
+        if (boundAny && opts.debug) {
+          console.log('[PostPurchase] Popup attached to:', ids.join(', '));
+        }
+        return;
+      }
+
+      if (Date.now() - started < maxWait) {
+        setTimeout(tryAttach, 150);
+        return;
+      }
+
+      console.error(
+        '[PostPurchase] Button not found: #' + pending.join(', #') +
+        '. Use the exact id of the button you click (see Integration → Popup button id).'
+      );
     }
-    el.addEventListener('click', function () {
-      openPopup(partnerId, opts);
-    });
+
+    tryAttach();
   }
 
   function boot(host) {

@@ -9,7 +9,12 @@ import {
   publisherCtr,
   publisherEarningsFromClickCost,
 } from "@/lib/publisher-revenue";
-import { chartDaysForPreset } from "@/lib/date-range";
+import {
+  bucketKeyFromIso,
+  buildChartSeries,
+  defaultGranularityForPreset,
+  type ChartGranularity,
+} from "@/lib/chart-series";
 
 export interface PlacementWithMetrics extends PublisherPlacement {
   metrics: {
@@ -140,46 +145,60 @@ export function publisherTotals(
   };
 }
 
+export interface PublisherChartPoint {
+  date: string;
+  label: string;
+  clicks: number;
+  revenue: number;
+  offersShown: number;
+  ctr: number;
+}
+
+export function buildPublisherChartSeries(
+  snapshot: PublisherMetricsSnapshot,
+  preset: DateRangePreset,
+  granularity: ChartGranularity = defaultGranularityForPreset(preset)
+): PublisherChartPoint[] {
+  const { clicks, impressions } = filterPublisherByRange(snapshot, preset);
+  const base = buildChartSeries(
+    clicks.map((c) => ({ cost: c.cost, created_at: c.created_at })),
+    [],
+    preset,
+    granularity
+  );
+
+  const impressionsByKey = new Map<string, number>();
+  for (const imp of impressions) {
+    const key = bucketKeyFromIso(imp.created_at, granularity);
+    impressionsByKey.set(key, (impressionsByKey.get(key) ?? 0) + 1);
+  }
+
+  return base.map((p) => {
+    const offersShown = impressionsByKey.get(p.date) ?? 0;
+    return {
+      date: p.date,
+      label: p.label,
+      clicks: p.clicks,
+      revenue: publisherEarningsFromClickCost(p.spend),
+      offersShown,
+      ctr: publisherCtr(p.clicks, offersShown),
+    };
+  });
+}
+
 export function buildPublisherDashboardData(
   snapshot: PublisherMetricsSnapshot,
   preset: DateRangePreset
 ) {
   const totals = publisherTotals(snapshot, preset);
-  const { clicks, impressions } = filterPublisherByRange(snapshot, preset);
-  const days = chartDaysForPreset(preset);
-  const now = new Date();
-
-  const series: { clicks: number; revenue: number; offersShown: number }[] = [];
-
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
-
-    const dayClicks = clicks.filter(
-      (c) => c.created_at.split("T")[0] === dateStr
-    );
-    const dayImpressions = impressions.filter(
-      (imp) => imp.created_at.split("T")[0] === dateStr
-    );
-
-    series.push({
-      clicks: dayClicks.length,
-      revenue: publisherEarningsFromClickCost(
-        dayClicks.reduce((s, c) => s + c.cost, 0)
-      ),
-      offersShown: dayImpressions.length,
-    });
-  }
+  const dailySeries = buildPublisherChartSeries(snapshot, preset, "daily");
 
   return {
     totals,
     sparklines: {
-      clicks: series.map((r) => r.clicks),
-      revenue: series.map((r) => r.revenue),
-      ctr: series.map((r) =>
-        r.offersShown > 0 ? r.clicks / r.offersShown : 0
-      ),
+      clicks: dailySeries.map((r) => r.clicks),
+      revenue: dailySeries.map((r) => r.revenue),
+      ctr: dailySeries.map((r) => r.ctr),
     },
   };
 }

@@ -8,8 +8,10 @@ export {
   placementsWithMetrics,
   publisherTotals,
   buildPublisherDashboardData,
+  buildPublisherChartSeries,
 } from "@/lib/api/publisher-metrics-shared";
 
 export type {
   PublisherDashboardTotals,
+  PublisherChartPoint,
 } from "@/lib/api/publisher-metrics-shared";

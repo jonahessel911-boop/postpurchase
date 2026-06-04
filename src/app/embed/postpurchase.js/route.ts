@@ -1,8 +1,8 @@
 import { buildPostpurchaseEmbedScript } from "@/lib/embed/widget-script";
-import { getAppOrigin } from "@/lib/widget-url";
+import { getPublisherPlatformOrigin } from "@/lib/widget-url";
 
 export async function GET() {
-  const script = buildPostpurchaseEmbedScript(getAppOrigin());
+  const script = buildPostpurchaseEmbedScript(getPublisherPlatformOrigin());
 
   return new Response(script, {
     headers: {

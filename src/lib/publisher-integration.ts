@@ -31,23 +31,26 @@ export function buildPartnerEmbedSnippet(
 
   if (format === "redirect") {
     const url = buildRedirectPageUrl(partnerId);
-    return `<!-- PostPurchase — redirect after form submit -->
-<!-- Paste this URL in your form's "redirect after submit" setting: -->
+    return `<!-- PostPurchase — full offers page after submit -->
+<!-- Use ONE of the options below -->
+
+<!-- 1) Form: paste in "redirect URL after submit" / thank-you URL -->
 ${url}
 
-<!-- Option A: HTTP redirect -->
-<!-- Location: ${url} -->
+<!-- 2) Link (opens offers page — use on buttons that are NOT type=submit) -->
+<a href="${url}">Bekijk je aanbiedingen</a>
 
-<!-- Option B: JavaScript -->
-<script>
-  window.location.href = "${url}";
-</script>`;
+<!-- 3) Button with onclick (LP builders that only support buttons) -->
+<button type="button" onclick="window.location.assign('${url}')">Bekijk je aanbiedingen</button>
+
+<!-- 4) Thank-you page only: uncomment to auto-redirect -->
+<!-- <script>window.location.replace("${url}");</script> -->`;
   }
 
   if (format === "popup") {
     const elementId = options?.submitElementId?.trim() || "submit-button";
-    return `<!-- PostPurchase — popup on submit (traffic partner: ${partnerId}) -->
-<!-- Your submit button: <button id="${elementId}" type="submit">...</button> -->
+    return `<!-- PostPurchase — popup on button click (traffic partner: ${partnerId}) -->
+<!-- Must match the id of the button that opens the popup, e.g. id="${elementId}" -->
 <script src="${origin}/embed/postpurchase.js" async></script>
 <script>
   (function () {

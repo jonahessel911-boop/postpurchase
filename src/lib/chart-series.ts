@@ -63,7 +63,10 @@ function bucketKeyFromDate(d: Date, granularity: ChartGranularity): string {
   }
 }
 
-function bucketKeyFromIso(iso: string, granularity: ChartGranularity): string {
+export function bucketKeyFromIso(
+  iso: string,
+  granularity: ChartGranularity
+): string {
   return bucketKeyFromDate(new Date(iso), granularity);
 }
 
@@ -146,6 +149,7 @@ export function defaultGranularityForPreset(
   preset: DateRangePreset
 ): ChartGranularity {
   switch (preset) {
+    case "today":
     case "7d":
     case "30d":
       return "daily";
