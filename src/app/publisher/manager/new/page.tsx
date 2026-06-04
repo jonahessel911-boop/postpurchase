@@ -1,5 +1,5 @@
-import { OfferCreateWizard } from "@/components/publisher/offer-create-wizard";
+import { redirect } from "next/navigation";
 
-export default function NewOfferPage() {
-  return <OfferCreateWizard />;
+export default function LegacyNewOfferPage() {
+  redirect("/publisher/manager");
 }

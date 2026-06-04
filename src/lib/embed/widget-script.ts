@@ -4,7 +4,8 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
 
   return `(function () {
   var ORIGIN = '${safeOrigin}';
-  var ATTR = 'data-postpurchase-placement';
+  var ATTR = 'data-traffic-partner-id';
+  var LEGACY_ATTR = 'data-postpurchase-placement';
   var ACCENT = '#5B47FB';
 
   function sanitizeText(s) {
@@ -86,7 +87,7 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
   function popupRowHtml(offer, clickUrl) {
     var title = escapeHtml(sanitizeText(offer.title));
     var desc = sanitizeText(offer.subheadline || '');
-    return '<a class="pp-row-popup" href="' + escapeHtml(clickUrl) + '" rel="noopener sponsored">' +
+    return '<a class="pp-row-popup" href="' + escapeHtml(clickUrl) + '" target="_blank" rel="noopener noreferrer sponsored">' +
       '<div class="pp-thumb">' + mediaHtml(offer) + '</div>' +
       '<div class="pp-row-body"><p class="pp-row-title">' + title + '</p>' +
       (desc ? '<p class="pp-row-desc">' + escapeHtml(desc) + '</p>' : '') +
@@ -96,7 +97,7 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
   function nativeRowHtml(offer, clickUrl) {
     var title = escapeHtml(sanitizeText(offer.title));
     var desc = sanitizeText(offer.subheadline || '');
-    return '<a class="pp-row-native" href="' + escapeHtml(clickUrl) + '" rel="noopener sponsored">' +
+    return '<a class="pp-row-native" href="' + escapeHtml(clickUrl) + '" target="_blank" rel="noopener noreferrer sponsored">' +
       '<div class="pp-thumb">' + mediaHtml(offer) + '</div>' +
       '<div class="pp-row-body"><p class="pp-row-title">' + title + '</p>' +
       (desc ? '<p class="pp-row-desc">' + escapeHtml(desc) + '</p>' : '') +
@@ -172,12 +173,23 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
     shadow.appendChild(root);
   }
 
-  function openPopup(placementId, opts) {
+  function partnerIdFrom(el) {
+    return el.getAttribute(ATTR) || el.getAttribute(LEGACY_ATTR) || el.getAttribute('data-placement');
+  }
+
+  function offersQuery(partnerId, format) {
+    var q = 'publisher_id=' + encodeURIComponent(partnerId) + '&format=' + encodeURIComponent(format || 'popup');
+    var w = window.location.href;
+    if (w) q += '&widget_url=' + encodeURIComponent(w);
+    return q;
+  }
+
+  function openPopup(partnerId, opts) {
     opts = opts || {};
     var geo = opts.geo || '';
     var widgetUrl = opts.widgetUrl || window.location.href;
 
-    fetch(ORIGIN + '/api/widget/offers?placement_id=' + encodeURIComponent(placementId))
+    fetch(ORIGIN + '/api/widget/offers?' + offersQuery(partnerId, 'popup'))
       .then(function (r) { return r.json(); })
       .then(function (payload) {
         if (payload.error) throw new Error(payload.error);
@@ -196,7 +208,7 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
       });
   }
 
-  function attachSubmit(placementId, opts) {
+  function attachSubmit(partnerId, opts) {
     opts = opts || {};
     var id = opts.submitElementId || opts.elementId;
     if (!id) {
@@ -209,17 +221,18 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
       return;
     }
     el.addEventListener('click', function () {
-      openPopup(placementId, opts);
+      openPopup(partnerId, opts);
     });
   }
 
   function boot(host) {
-    var placementId = host.getAttribute(ATTR) || host.getAttribute('data-placement');
-    if (!placementId) return;
+    var partnerId = partnerIdFrom(host);
+    if (!partnerId) return;
     var geo = host.getAttribute('data-geo') || '';
     var widgetUrl = host.getAttribute('data-widget-url') || window.location.href;
+    var format = host.getAttribute('data-format') || 'native';
 
-    fetch(ORIGIN + '/api/widget/offers?placement_id=' + encodeURIComponent(placementId))
+    fetch(ORIGIN + '/api/widget/offers?' + offersQuery(partnerId, format))
       .then(function (r) { return r.json(); })
       .then(function (payload) {
         if (payload.error) throw new Error(payload.error);
@@ -243,7 +256,8 @@ export function buildPostpurchaseEmbedScript(appOrigin: string): string {
   }
 
   function init() {
-    var nodes = document.querySelectorAll('[' + ATTR + '], [data-placement]');
+    var sel = '[' + ATTR + '], [' + LEGACY_ATTR + '], [data-placement]';
+    var nodes = document.querySelectorAll(sel);
     if (!nodes.length) return;
     nodes.forEach(boot);
   }

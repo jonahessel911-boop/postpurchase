@@ -1,30 +1,38 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
-import { getPlacementForWidget } from "@/lib/api/widget-offers";
 import { WidgetPublicPage } from "@/components/publisher/widget-public-page";
-import { hasServiceClient } from "@/lib/supabase/service";
+import { WidgetUnavailable } from "@/components/publisher/widget-unavailable";
+import { loadWidgetPartnerPageData } from "@/lib/widget-partner-page";
 
-export default async function WidgetPlacementPage({
+export default async function WidgetPartnerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ placementId: string }>;
+  searchParams: Promise<{ embed?: string; format?: string }>;
 }) {
   const { placementId } = await params;
+  const sp = await searchParams;
+  const data = await loadWidgetPartnerPageData(placementId, sp);
 
-  if (!hasServiceClient()) {
+  if (!data.ok) {
+    if (data.reason === "no_service") {
+      return (
+        <WidgetUnavailable message="Widget is temporarily unavailable (server configuration)." />
+      );
+    }
     return (
-      <p className="p-8 text-center text-[14px] text-muted">
-        Widget preview unavailable (service role not configured).
-      </p>
+      <WidgetUnavailable message="Traffic partner not found or inactive. Check your traffic partner id in Integration." />
     );
   }
 
-  const placement = await getPlacementForWidget(placementId);
-  if (!placement) notFound();
-
   return (
     <Suspense fallback={null}>
-      <WidgetPublicPage placementId={placementId} placement={placement} />
+      <WidgetPublicPage
+        partnerId={data.partnerId}
+        companyName={data.companyName}
+        format={data.format}
+        embed={data.embed}
+      />
     </Suspense>
   );
 }

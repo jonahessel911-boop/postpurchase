@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { getPublisherPlacement } from "@/lib/api/publisher-placements";
+import { getPublisherAccountId } from "@/lib/api/advertiser-account";
 import { loadWidgetOffers } from "@/lib/api/widget-offers";
 import { createClient } from "@/lib/supabase/server";
 import { hasServiceClient } from "@/lib/supabase/service";
+import type { ClickPlacement } from "@/lib/types";
+import { normalizePlacement } from "@/lib/click-attribution";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,11 +18,14 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const placementId = searchParams.get("placement_id")?.trim();
+  const publisherId =
+    searchParams.get("publisher_id")?.trim() ||
+    searchParams.get("traffic_partner_id")?.trim() ||
+    searchParams.get("placement_id")?.trim();
 
-  if (!placementId) {
+  if (!publisherId) {
     return NextResponse.json(
-      { error: "placement_id required" },
+      { error: "publisher_id (traffic partner id) required" },
       { status: 400, headers: corsHeaders }
     );
   }
@@ -32,25 +37,39 @@ export async function GET(request: Request) {
     );
   }
 
+  const formatParam = searchParams.get("format") ?? searchParams.get("placement");
+  const format =
+    (formatParam ? normalizePlacement(formatParam) : null) ?? "native";
+
   try {
     const preview = searchParams.get("preview") === "1";
     let allowPreview = false;
     if (preview) {
       try {
         const supabase = await createClient();
-        const owned = await getPublisherPlacement(supabase, placementId);
-        allowPreview = !!owned;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const owned = await getPublisherAccountId(supabase, user.id);
+          allowPreview = owned === publisherId;
+        }
       } catch {
         allowPreview = false;
       }
     }
 
-    const payload = await loadWidgetOffers(placementId, {
+    const payload = await loadWidgetOffers(publisherId, {
       preview: allowPreview,
+      format,
+      widgetUrl: searchParams.get("widget_url"),
+      intentProduct: searchParams.get("intent_product"),
+      geoCountry: searchParams.get("geo"),
     });
+
     if (!payload) {
       return NextResponse.json(
-        { error: "Placement not found or inactive" },
+        { error: "Traffic partner not found or inactive" },
         { status: 404, headers: corsHeaders }
       );
     }

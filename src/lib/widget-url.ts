@@ -1,7 +1,9 @@
 import type { ClickPlacement } from "@/lib/types";
-import { getApiDomain } from "@/lib/utils";
 
-export { getApiDomain };
+/** Base path for click tracking on this app (records click → redirects to advertiser). */
+export function getClickApiBase(): string {
+  return `${getAppOrigin()}/api/click`;
+}
 
 export function normalizeSiteUrl(url: string): string {
   const trimmed = url.trim();
@@ -40,7 +42,7 @@ export function buildWidgetClickUrl(
     adId: string;
   }
 ): string {
-  const url = new URL(`${getApiDomain()}/click/${campaignId}`);
+  const url = new URL(`${getClickApiBase()}/${campaignId}`);
   url.searchParams.set("widget_url", options.widgetUrl);
   url.searchParams.set("publisher_id", options.publisherId);
   if (options.intentProduct) {
@@ -61,9 +63,29 @@ export function buildWidgetClickUrl(
   return url.toString();
 }
 
+/** Live publisher platform (embeds, redirects, widget iframes). */
+export const PUBLISHER_PLATFORM_ORIGIN = "https://platform.relyo.nl";
+
 export function getAppOrigin(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
     "http://localhost:3000"
   );
+}
+
+/**
+ * Origin shown in publisher install codes (redirect, popup, native).
+ * Always the public platform URL — never localhost, even in local dev.
+ */
+export function getPublisherPlatformOrigin(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+  if (fromEnv && !/^https?:\/\/localhost(\b|:)/i.test(fromEnv)) {
+    return fromEnv;
+  }
+  return PUBLISHER_PLATFORM_ORIGIN;
+}
+
+/** @alias getPublisherPlatformOrigin */
+export function getResourcesExampleOrigin(): string {
+  return getPublisherPlatformOrigin();
 }

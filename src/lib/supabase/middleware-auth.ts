@@ -44,6 +44,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/setup") ||
     pathname.startsWith("/api/demo") ||
     pathname.startsWith("/api/widget") ||
+    pathname.startsWith("/api/click") ||
     pathname.startsWith("/embed") ||
     pathname.startsWith("/widget") ||
     pathname.startsWith("/p/");

@@ -1,19 +1,20 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { WidgetPreview } from "@/components/publisher/widget-preview";
-import type { PublisherPlacement } from "@/lib/publisher-types";
+import type { ClickPlacement } from "@/lib/types";
 
 export function WidgetPublicPage({
-  placementId,
-  placement,
+  partnerId,
+  companyName,
+  format,
+  embed,
 }: {
-  placementId: string;
-  placement: PublisherPlacement;
+  partnerId: string;
+  companyName: string;
+  format: ClickPlacement;
+  embed: boolean;
 }) {
-  const searchParams = useSearchParams();
-  const embed = searchParams.get("embed") === "1";
-  const isRedirect = placement.placement === "redirect";
+  const isRedirect = format === "redirect";
 
   return (
     <div
@@ -32,7 +33,12 @@ export function WidgetPublicPage({
             : "mx-auto w-full max-w-md"
         }
       >
-        <WidgetPreview placementId={placementId} placement={placement} />
+        {!embed && !isRedirect ? (
+          <p className="mb-4 text-center text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+            PostPurchase · {companyName}
+          </p>
+        ) : null}
+        <WidgetPreview partnerId={partnerId} format={format} />
       </div>
     </div>
   );

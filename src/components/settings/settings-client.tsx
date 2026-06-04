@@ -5,6 +5,7 @@ import { Card, Button, CopyButton, PageHeader, TabList, TabButton } from "@/comp
 import { SettingsInvoicesPanel } from "@/components/settings/settings-invoices-panel";
 import type { Invoice, InvoiceSettings } from "@/lib/api/settings-server";
 import { formatCurrency, getApiDomain } from "@/lib/utils";
+import { getClickApiBase } from "@/lib/widget-url";
 import { topUpWallet } from "@/lib/api/campaign-actions";
 import { ExternalLink } from "lucide-react";
 
@@ -30,9 +31,8 @@ function GeneralSettings({
   const [balance, setBalance] = useState(advertiser?.wallet_balance ?? 0);
   const [loading, setLoading] = useState(false);
 
-  const apiDomain = getApiDomain();
-  const clickUrl = `${apiDomain}/click/{campaign_id}`;
-  const postbackUrl = `${apiDomain}/postback?click_id={CLICK_ID}`;
+  const clickUrl = `${getClickApiBase()}/{campaign_id}`;
+  const postbackUrl = `${getApiDomain()}/postback?click_id={CLICK_ID}`;
 
   async function handleTopUp() {
     setLoading(true);

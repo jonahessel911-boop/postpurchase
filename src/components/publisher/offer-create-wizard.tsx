@@ -178,14 +178,7 @@ export function OfferCreateWizard() {
   const embedCode =
     placementId && offerType
       ? buildEmbedSnippet(placementId, offerType, {
-          geo: form.geo_country || undefined,
-          widgetUrl: savedPlacement
-            ? placementWidgetPageUrl(savedPlacement)
-            : undefined,
           submitElementId: form.submit_element_id,
-          postSubmitRedirectUrl:
-            form.post_submit_redirect_url ||
-            buildRedirectPageUrl(placementId),
         })
       : "";
 
@@ -419,8 +412,8 @@ export function OfferCreateWizard() {
                 </p>
                 <div className="mt-4">
                   <WidgetPreview
-                    placementId={placementId}
-                    placement={savedPlacement}
+                    partnerId={placementId}
+                    format={offerType}
                     allowPreview
                     demo
                   />

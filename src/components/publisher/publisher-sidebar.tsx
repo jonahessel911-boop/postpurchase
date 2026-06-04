@@ -5,12 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import { LayoutDashboard, LayoutGrid, Settings, Radio } from "lucide-react";
+import {
+  BookOpen,
+  LayoutDashboard,
+  LayoutGrid,
+  Settings,
+  Radio,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const nav = [
   { href: "/publisher/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/publisher/manager", label: "Manager", icon: LayoutGrid },
+  { href: "/publisher/manager", label: "Integration", icon: LayoutGrid },
+  { href: "/publisher/resources", label: "Resources", icon: BookOpen },
   { href: "/publisher/settings", label: "Settings", icon: Settings },
 ];
 

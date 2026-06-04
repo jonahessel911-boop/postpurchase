@@ -6,6 +6,8 @@ import {
   offerCta,
   offerDescription,
   offerTitle,
+  OFFER_LINK_REL,
+  OFFER_LINK_TARGET,
   WIDGET_COPY,
 } from "@/lib/widget-offer-display";
 import { cn } from "@/lib/utils";
@@ -76,7 +78,8 @@ function RedirectOfferRow({
   return (
     <a
       href={clickHref}
-      rel="noopener sponsored"
+      target={OFFER_LINK_TARGET}
+      rel={OFFER_LINK_REL}
       className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-stretch"
     >
       <OfferMedia offer={offer} className="aspect-[16/9] w-full sm:aspect-auto sm:h-auto sm:w-[148px] sm:min-h-[108px]" />
@@ -117,7 +120,8 @@ function PopupOfferRow({
   return (
     <a
       href={clickHref}
-      rel="noopener sponsored"
+      target={OFFER_LINK_TARGET}
+      rel={OFFER_LINK_REL}
       className="group flex items-center gap-3 rounded-xl border border-zinc-100 bg-white p-3 transition-colors hover:border-zinc-200 hover:bg-zinc-50/80"
     >
       <OfferMedia offer={offer} className="h-14 w-14 rounded-lg" />
@@ -150,7 +154,8 @@ function NativeOfferRow({
   return (
     <a
       href={clickHref}
-      rel="noopener sponsored"
+      target={OFFER_LINK_TARGET}
+      rel={OFFER_LINK_REL}
       className="group flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-3 py-3 transition-colors hover:border-zinc-200"
     >
       <OfferMedia offer={offer} className="h-12 w-12 rounded-lg" />

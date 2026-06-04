@@ -18,6 +18,10 @@ export function offerDescription(offer: WidgetOffer): string {
   return sanitizeOfferText(offer.subheadline || "");
 }
 
+/** Opens advertiser destination in a new tab (required inside iframe embeds). */
+export const OFFER_LINK_REL = "noopener noreferrer sponsored";
+export const OFFER_LINK_TARGET = "_blank";
+
 export function offerCta(
   offer: WidgetOffer,
   placement: ClickPlacement

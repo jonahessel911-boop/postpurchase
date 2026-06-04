@@ -3,22 +3,20 @@
 import { useEffect, useState } from "react";
 import type { WidgetOffersResponse } from "@/lib/publisher-types";
 import { WidgetOffersView } from "@/components/publisher/widget-offers-view";
-import type { PublisherPlacement } from "@/lib/publisher-types";
-import { placementWidgetPageUrl } from "@/lib/api/publisher-placements";
-import { WIDGET_DEMO_OFFERS } from "@/lib/widget-demo-offers";
-import { buildWidgetClickUrl } from "@/lib/widget-url";
+import { buildOfferClickUrl } from "@/lib/api/widget-offers";
 import type { ClickPlacement } from "@/lib/types";
+import { WIDGET_DEMO_OFFERS } from "@/lib/widget-demo-offers";
 import { Loader2 } from "lucide-react";
 
 export function WidgetPreview({
-  placementId,
-  placement,
+  partnerId,
+  format = "native",
   allowPreview = false,
-  /** Install wizard: show 3 sample offers, not live campaigns */
   demo = false,
 }: {
-  placementId: string;
-  placement?: PublisherPlacement;
+  /** Traffic partner id */
+  partnerId: string;
+  format?: ClickPlacement;
   allowPreview?: boolean;
   demo?: boolean;
 }) {
@@ -26,9 +24,6 @@ export function WidgetPreview({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!demo);
   const [popupDismissed, setPopupDismissed] = useState(false);
-
-  const placementType: ClickPlacement =
-    placement?.placement ?? data?.placement ?? "native";
 
   useEffect(() => {
     if (demo) return;
@@ -39,7 +34,9 @@ export function WidgetPreview({
     setPopupDismissed(false);
 
     const previewParam = allowPreview ? "&preview=1" : "";
-    fetch(`/api/widget/offers?placement_id=${placementId}${previewParam}`)
+    fetch(
+      `/api/widget/offers?publisher_id=${encodeURIComponent(partnerId)}&format=${format}${previewParam}`
+    )
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
@@ -58,7 +55,7 @@ export function WidgetPreview({
     return () => {
       cancelled = true;
     };
-  }, [placementId, allowPreview, demo]);
+  }, [partnerId, format, allowPreview, demo]);
 
   if (!demo && loading) {
     return (
@@ -77,6 +74,7 @@ export function WidgetPreview({
   }
 
   const offers = demo ? WIDGET_DEMO_OFFERS : data?.offers ?? [];
+  const placementType = format;
 
   if (!demo && !offers.length) {
     return (
@@ -87,22 +85,12 @@ export function WidgetPreview({
     );
   }
 
-  const widgetUrl = placement
-    ? placementWidgetPageUrl(placement)
-    : undefined;
-
   const getClickHref = (offer: (typeof offers)[0]) => {
     if (demo) return "#";
-    if (!placement || !data) return "#";
-    return buildWidgetClickUrl(offer.campaign_id, {
-      widgetUrl: widgetUrl || "",
-      publisherId: placement.publisher_id,
-      intentProduct: placement.intent_product,
-      productChoose: offer.product_label,
-      productSelection: offers.map((o) => o.product_label),
-      placement: placement.placement,
-      geoCountry: placement.geo_country,
-      adId: offer.ad_id,
+    if (!data) return "#";
+    return buildOfferClickUrl(partnerId, placementType, offer, offers, {
+      widgetUrl: typeof window !== "undefined" ? window.location.href : "",
+      intentProduct: data.intent_product,
     });
   };
 
@@ -114,19 +102,16 @@ export function WidgetPreview({
     );
   }
 
-  const cardsOnly = demo || placementType === "native";
-
-
   return (
     <WidgetOffersView
       offers={offers}
       placement={placementType}
       getClickHref={getClickHref}
-      cardsOnly={cardsOnly}
+      cardsOnly={demo || placementType === "native"}
       onDismiss={
-        demo || placementType !== "popup"
-          ? undefined
-          : () => setPopupDismissed(true)
+        placementType === "popup" && !demo
+          ? () => setPopupDismissed(true)
+          : undefined
       }
     />
   );

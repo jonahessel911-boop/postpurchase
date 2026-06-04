@@ -22,11 +22,8 @@ export function OfferDetailPage({
   const router = useRouter();
   const [placement, setPlacement] = useState(initial);
 
-  const embedCode = buildEmbedSnippet(placement.id, placement.placement, {
-    geo: placement.geo_country ?? undefined,
-    widgetUrl: placementWidgetPageUrl(placement),
+  const embedCode = buildEmbedSnippet(placement.publisher_id, placement.placement, {
     submitElementId: placement.submit_element_id ?? undefined,
-    postSubmitRedirectUrl: placement.post_submit_redirect_url ?? undefined,
   });
 
   async function toggleActive(active: boolean) {
@@ -119,8 +116,8 @@ export function OfferDetailPage({
           <h2 className="text-[14px] font-semibold">Preview</h2>
           <div className="mt-4">
             <WidgetPreview
-              placementId={placement.id}
-              placement={placement}
+              partnerId={placement.publisher_id}
+              format={placement.placement}
               allowPreview={!placement.active}
             />
           </div>
