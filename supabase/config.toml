@@ -1,0 +1,15 @@
+name = "postpurchase"
+project_id = "postpurchase"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[functions.click]
+verify_jwt = false
+
+[functions.postback]
+verify_jwt = false
