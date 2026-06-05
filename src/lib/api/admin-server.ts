@@ -12,9 +12,9 @@ import type {
   PostbackLog,
 } from "@/lib/admin-types";
 import {
-  estimateRevenue,
-  estimateRoas,
+  estimateRoasFromMetrics,
 } from "@/lib/campaign-table-utils";
+import { publisherEarningsFromClickCost } from "@/lib/publisher-revenue";
 
 type AdvertiserRow = {
   id: string;
@@ -118,16 +118,70 @@ async function loadAdvertiserMap(): Promise<Map<string, AdminAdvertiser>> {
   );
 }
 
+async function loadPublisherNameMap(): Promise<Map<string, string>> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("publishers")
+    .select("id, company_name");
+
+  if (error) {
+    console.error("loadPublisherNameMap:", error.message);
+    return new Map();
+  }
+
+  return new Map(
+    (data ?? []).map((row) => [row.id as string, (row.company_name as string) ?? "—"])
+  );
+}
+
+function revenueByCampaignFromConversions(
+  clicks: { click_id: string; campaign_id: string }[],
+  conversions: { click_id: string; value: number | string }[]
+): Map<string, number> {
+  const campaignByClick = new Map(
+    clicks.map((c) => [c.click_id, c.campaign_id as string])
+  );
+  const revenue = new Map<string, number>();
+  for (const conv of conversions) {
+    const campaignId = campaignByClick.get(conv.click_id);
+    if (!campaignId) continue;
+    revenue.set(campaignId, (revenue.get(campaignId) ?? 0) + num(conv.value));
+  }
+  return revenue;
+}
+
 function attachAdvertiser(
   campaign: ReturnType<typeof buildCampaignWithMetrics>,
-  advertiser: AdminAdvertiser
+  advertiser: AdminAdvertiser,
+  revenue: number
 ): AdminCampaignRow {
-  const revenue = estimateRevenue(campaign);
   return {
     ...campaign,
     advertiser,
     revenue,
-    roas: estimateRoas(campaign),
+    roas: estimateRoasFromMetrics(campaign.metrics.spend, revenue),
+  };
+}
+
+function fallbackAdvertiser(advertiserId: string): AdminAdvertiser {
+  return {
+    id: advertiserId,
+    name: "Unknown advertiser",
+    email: "—",
+    company: "—",
+    status: "active",
+    wallet_balance: 0,
+    created_at: new Date(0).toISOString(),
+    billing: {
+      company_name: "",
+      email: "",
+      vat_number: "",
+      address_line1: "",
+      address_line2: "",
+      city: "",
+      postal_code: "",
+      country: "NL",
+    },
   };
 }
 
@@ -140,7 +194,11 @@ export async function loadAdminCampaigns(): Promise<AdminCampaignRow[]> {
     .select("*")
     .order("updated_at", { ascending: false });
 
-  if (error || !campaigns?.length) return [];
+  if (error) {
+    console.error("loadAdminCampaigns:", error.message);
+    return [];
+  }
+  if (!campaigns?.length) return [];
 
   const campaignIds = campaigns.map((c) => c.id);
 
@@ -152,13 +210,18 @@ export async function loadAdminCampaigns(): Promise<AdminCampaignRow[]> {
       .in("campaign_id", campaignIds),
   ]);
 
-  const clickIds = (clicks ?? []).map((c) => c.click_id);
+  const clickIds = (clicks ?? []).map((c) => c.click_id as string);
   const { data: conversions } = clickIds.length
     ? await supabase
         .from("conversions")
         .select("click_id, value")
         .in("click_id", clickIds)
     : { data: [] as { click_id: string; value: number | string }[] };
+
+  const revenueByCampaign = revenueByCampaignFromConversions(
+    (clicks ?? []) as { click_id: string; campaign_id: string }[],
+    conversions ?? []
+  );
 
   const adsByCampaign = new Map<string, typeof ads>();
   for (const ad of ads ?? []) {
@@ -175,8 +238,9 @@ export async function loadAdminCampaigns(): Promise<AdminCampaignRow[]> {
   }
 
   return (campaigns as Campaign[]).flatMap((campaign) => {
-    const advertiser = advertiserMap.get(campaign.advertiser_id);
-    if (!advertiser) return [];
+    const advertiser =
+      advertiserMap.get(campaign.advertiser_id) ??
+      fallbackAdvertiser(campaign.advertiser_id);
 
     const withMetrics = buildCampaignWithMetrics(
       campaign,
@@ -185,7 +249,13 @@ export async function loadAdminCampaigns(): Promise<AdminCampaignRow[]> {
       conversions ?? []
     );
 
-    return [attachAdvertiser(withMetrics, advertiser)];
+    return [
+      attachAdvertiser(
+        withMetrics,
+        advertiser,
+        revenueByCampaign.get(campaign.id) ?? 0
+      ),
+    ];
   });
 }
 
@@ -286,14 +356,19 @@ export async function loadAdminClickLogs(limit = 500): Promise<ClickLog[]> {
       product_selection,
       geo_country,
       placement,
-      publisher_id,
-      publishers ( company_name )
+      publisher_id
     `
     )
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error || !clicks?.length) return [];
+  if (error) {
+    console.error("loadAdminClickLogs:", error.message);
+    return [];
+  }
+  if (!clicks?.length) return [];
+
+  const publisherNames = await loadPublisherNameMap();
 
   const campaignIds = [...new Set(clicks.map((c) => c.campaign_id as string))];
   const adIds = [
@@ -335,10 +410,10 @@ export async function loadAdminClickLogs(limit = 500): Promise<ClickLog[]> {
     const advertiser = campaign
       ? advertiserMap.get(campaign.advertiser_id as string)
       : undefined;
-    const pubRaw = click.publishers;
-    const publisher = Array.isArray(pubRaw)
-      ? (pubRaw[0] as { company_name: string } | undefined)
-      : (pubRaw as { company_name: string } | null);
+    const publisherId = click.publisher_id as string | null;
+    const publisherName = publisherId
+      ? publisherNames.get(publisherId) ?? "—"
+      : "—";
     let selection: string[] = [];
     if (Array.isArray(click.product_selection)) {
       selection = click.product_selection.map((x) => String(x));
@@ -357,7 +432,7 @@ export async function loadAdminClickLogs(limit = 500): Promise<ClickLog[]> {
       country: (click.geo_country as string) ?? "—",
       device: "",
       converted: convertedClicks.has(click.click_id as string),
-      traffic_partner: publisher?.company_name ?? "—",
+      traffic_partner: publisherName,
       page: (click.page as string) ?? "—",
       intent_product: (click.intent_product as string) ?? "—",
       product_choose: (click.product_choose as string) ?? "—",
@@ -377,9 +452,14 @@ export async function loadAdminPostbackLogs(limit = 500): Promise<PostbackLog[]>
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error || !conversions?.length) return [];
+  if (error) {
+    console.error("loadAdminPostbackLogs:", error.message);
+    return [];
+  }
+  if (!conversions?.length) return [];
 
   const clickIds = conversions.map((c) => c.click_id as string);
+  const publisherNames = await loadPublisherNameMap();
 
   const { data: clicks } = await supabase
     .from("clicks")
@@ -396,8 +476,7 @@ export async function loadAdminPostbackLogs(limit = 500): Promise<PostbackLog[]>
       product_selection,
       geo_country,
       placement,
-      publisher_id,
-      publishers ( company_name )
+      publisher_id
     `
     )
     .in("click_id", clickIds);
@@ -438,12 +517,10 @@ export async function loadAdminPostbackLogs(limit = 500): Promise<PostbackLog[]>
     const advertiser = campaign
       ? advertiserMap.get(campaign.advertiser_id as string)
       : undefined;
-    const pubRaw = click?.publishers;
-    const publisher = pubRaw
-      ? Array.isArray(pubRaw)
-        ? (pubRaw[0] as { company_name: string } | undefined)
-        : (pubRaw as { company_name: string })
-      : undefined;
+    const publisherId = click?.publisher_id as string | null;
+    const publisherName = publisherId
+      ? publisherNames.get(publisherId) ?? "—"
+      : "—";
     let selection: string[] = [];
     if (click && Array.isArray(click.product_selection)) {
       selection = click.product_selection.map((x) => String(x));
@@ -463,7 +540,7 @@ export async function loadAdminPostbackLogs(limit = 500): Promise<PostbackLog[]>
       status: "success" as const,
       http_status: 200,
       latency_ms: 0,
-      traffic_partner: publisher?.company_name ?? "—",
+      traffic_partner: publisherName,
       page: (click?.page as string) ?? "—",
       intent_product: (click?.intent_product as string) ?? "—",
       product_choose: (click?.product_choose as string) ?? "—",
@@ -557,33 +634,54 @@ export async function loadAdminPublishers(): Promise<
   import("@/lib/admin-types").AdminPublisher[]
 > {
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from("publishers")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data, error }, { data: clicks }] = await Promise.all([
+    supabase
+      .from("publishers")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase.from("clicks").select("publisher_id, cost").not("publisher_id", "is", null),
+  ]);
 
-  if (error || !data) return [];
+  if (error || !data) {
+    if (error) console.error("loadAdminPublishers:", error.message);
+    return [];
+  }
 
-  return data.map((row) => ({
-    id: row.id as string,
-    company_name: (row.company_name as string) ?? "",
-    contact_email: (row.contact_email as string) ?? "",
-    status: row.status === "suspended" ? "suspended" : "active",
-    created_at: row.created_at as string,
-  }));
+  const clicksByPublisher = new Map<string, { count: number; cost: number }>();
+  for (const row of clicks ?? []) {
+    const id = row.publisher_id as string;
+    const prev = clicksByPublisher.get(id) ?? { count: 0, cost: 0 };
+    prev.count += 1;
+    prev.cost += num(row.cost);
+    clicksByPublisher.set(id, prev);
+  }
+
+  return data.map((row) => {
+    const stats = clicksByPublisher.get(row.id as string);
+    return {
+      id: row.id as string,
+      company_name: (row.company_name as string) ?? "",
+      contact_email: (row.contact_email as string) ?? "",
+      status: row.status === "suspended" ? "suspended" : "active",
+      created_at: row.created_at as string,
+      clicks: stats?.count ?? 0,
+      publisher_revenue: publisherEarningsFromClickCost(stats?.cost ?? 0),
+    };
+  });
 }
 
 export async function getAdminPublisher(
   id: string
 ): Promise<import("@/lib/admin-types").AdminPublisher | null> {
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from("publishers")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data, error }, { data: clicks }] = await Promise.all([
+    supabase.from("publishers").select("*").eq("id", id).maybeSingle(),
+    supabase.from("clicks").select("cost").eq("publisher_id", id),
+  ]);
 
   if (error || !data) return null;
+
+  const clickCost = (clicks ?? []).reduce((s, c) => s + num(c.cost), 0);
 
   return {
     id: data.id as string,
@@ -591,6 +689,8 @@ export async function getAdminPublisher(
     contact_email: (data.contact_email as string) ?? "",
     status: data.status === "suspended" ? "suspended" : "active",
     created_at: data.created_at as string,
+    clicks: clicks?.length ?? 0,
+    publisher_revenue: publisherEarningsFromClickCost(clickCost),
   };
 }
 

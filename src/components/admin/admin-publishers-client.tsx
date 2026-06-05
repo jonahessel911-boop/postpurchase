@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { CreateAccountButton } from "@/components/admin/create-account-dialog";
 import type { AdminPublisher } from "@/lib/admin-types";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 
 export function AdminPublishersClient({ rows }: { rows: AdminPublisher[] }) {
   const router = useRouter();
@@ -34,6 +34,8 @@ export function AdminPublishersClient({ rows }: { rows: AdminPublisher[] }) {
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                   <th className="px-4 py-2.5">Company</th>
                   <th className="px-4 py-2.5">Contact</th>
+                  <th className="px-4 py-2.5 text-right">Clicks</th>
+                  <th className="px-4 py-2.5 text-right">Revenue</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
                 </tr>
@@ -52,6 +54,12 @@ export function AdminPublishersClient({ rows }: { rows: AdminPublisher[] }) {
                       {p.company_name}
                     </td>
                     <td className="px-4 py-3 text-muted">{p.contact_email}</td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {formatNumber(p.clicks)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {formatCurrency(p.publisher_revenue)}
+                    </td>
                     <td className="px-4 py-3 capitalize text-emerald-600">
                       {p.status}
                     </td>

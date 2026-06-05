@@ -6,6 +6,8 @@ export interface AdminPublisher {
   contact_email: string;
   status: "active" | "suspended";
   created_at: string;
+  clicks: number;
+  publisher_revenue: number;
 }
 
 export interface AdminAdvertiser {
