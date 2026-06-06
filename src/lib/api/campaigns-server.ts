@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Ad, Campaign } from "@/lib/types";
 import type { CampaignWithMetrics } from "@/lib/campaign-types";
 import { buildCampaignWithMetrics } from "@/lib/api/compute-metrics";
+import { loadLastPostbackAt } from "@/lib/api/campaign-tracking";
 import { normalizeCampaignStatus } from "@/lib/campaign-status";
 import type { AdvertiserMetricsSnapshot } from "@/lib/metrics-from-snapshot";
 
@@ -111,19 +112,27 @@ export async function loadCampaignWithMetrics(
   ]);
 
   const clickIds = (clicks ?? []).map((c) => c.click_id);
-  const { data: conversions } = clickIds.length
-    ? await supabase
-        .from("conversions")
-        .select("click_id, value")
-        .in("click_id", clickIds)
-    : { data: [] as { click_id: string; value: number }[] };
+  const [{ data: conversions }, lastPostbackAt] = await Promise.all([
+    clickIds.length
+      ? supabase
+          .from("conversions")
+          .select("click_id, value")
+          .in("click_id", clickIds)
+      : Promise.resolve({
+          data: [] as { click_id: string; value: number }[],
+        }),
+    loadLastPostbackAt(supabase, clickIds),
+  ]);
 
-  return buildCampaignWithMetrics(
-    mapCampaignRow(campaign),
-    ads ?? [],
-    clicks ?? [],
-    conversions ?? []
-  );
+  return {
+    ...buildCampaignWithMetrics(
+      mapCampaignRow(campaign),
+      ads ?? [],
+      clicks ?? [],
+      conversions ?? []
+    ),
+    last_postback_at: lastPostbackAt,
+  };
 }
 
 export async function loadDashboardClicks(days = 14) {

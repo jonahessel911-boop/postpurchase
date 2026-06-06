@@ -14,6 +14,18 @@ type ConversionRow = {
   value: number | string;
 };
 
+/** One conversion row per click_id — prevents double-counting in metrics. */
+function dedupeConversionsByClickId(rows: ConversionRow[]): ConversionRow[] {
+  const seen = new Set<string>();
+  const out: ConversionRow[] = [];
+  for (const row of rows) {
+    if (seen.has(row.click_id)) continue;
+    seen.add(row.click_id);
+    out.push(row);
+  }
+  return out;
+}
+
 function num(v: number | string): number {
   return Number(v);
 }
@@ -56,7 +68,8 @@ export function buildCampaignWithMetrics(
   clicks: ClickRow[],
   conversions: ConversionRow[]
 ): CampaignWithMetrics {
-  const adsWithMetrics = attachMetricsToAds(ads, clicks, conversions);
+  const uniqueConversions = dedupeConversionsByClickId(conversions);
+  const adsWithMetrics = attachMetricsToAds(ads, clicks, uniqueConversions);
   const agg = aggregateAdMetrics(publishedAds(adsWithMetrics));
 
   return {
@@ -70,6 +83,7 @@ export function buildCampaignWithMetrics(
       conversions: agg.conversions,
       cpa: agg.cpa,
     },
+    last_postback_at: null,
   };
 }
 

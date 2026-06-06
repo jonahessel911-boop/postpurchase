@@ -64,14 +64,28 @@ export function campaignsWithMetricsFromSnapshot(
     clicksByCampaign.set(click.campaign_id, list);
   }
 
-  return snapshot.campaigns.map((campaign) =>
-    buildCampaignWithMetrics(
+  const clickIdToCampaign = new Map(
+    snapshot.clicks.map((c) => [c.click_id, c.campaign_id])
+  );
+  const lastPostbackByCampaign = new Map<string, string>();
+  for (const conv of snapshot.conversions) {
+    const campaignId = clickIdToCampaign.get(conv.click_id);
+    if (!campaignId) continue;
+    const prev = lastPostbackByCampaign.get(campaignId);
+    if (!prev || conv.created_at > prev) {
+      lastPostbackByCampaign.set(campaignId, conv.created_at);
+    }
+  }
+
+  return snapshot.campaigns.map((campaign) => ({
+    ...buildCampaignWithMetrics(
       campaign,
       adsByCampaign.get(campaign.id) ?? [],
       clicksByCampaign.get(campaign.id) ?? [],
       conversions
-    )
-  );
+    ),
+    last_postback_at: lastPostbackByCampaign.get(campaign.id) ?? null,
+  }));
 }
 
 export function filteredClickStreamForChart(

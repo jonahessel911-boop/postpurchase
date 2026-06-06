@@ -11,6 +11,8 @@ export interface CampaignWithMetrics extends Campaign {
     conversions: number;
     cpa: number;
   };
+  /** Latest postback (conversion) timestamp for this campaign, if any. */
+  last_postback_at: string | null;
 }
 
 export function verticalLabel(v: Vertical): string {

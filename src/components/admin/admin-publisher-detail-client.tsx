@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AccountMembersPanel } from "@/components/admin/account-members-panel";
 import type { AdminPublisher } from "@/lib/admin-types";
 import type { AccountMemberRow } from "@/lib/api/admin-accounts";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
 export function AdminPublisherDetailClient({
@@ -27,6 +28,10 @@ export function AdminPublisherDetailClient({
           {publisher.company_name}
         </h1>
         <p className="mt-1 text-[13px] text-muted">{publisher.contact_email}</p>
+        <p className="mt-2 text-[13px] text-muted">
+          {formatNumber(publisher.clicks)} clicks ·{" "}
+          {formatCurrency(publisher.publisher_revenue)} publisher revenue
+        </p>
       </div>
 
       <AccountMembersPanel

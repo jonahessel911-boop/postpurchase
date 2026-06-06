@@ -40,7 +40,7 @@ export async function recordPostback(
 
   const { data: existing } = await supabase
     .from("conversions")
-    .select("id")
+    .select("id, value")
     .eq("click_id", clickId)
     .maybeSingle();
 
@@ -49,15 +49,19 @@ export async function recordPostback(
       status: "already_converted",
       clickId,
       event: conversionGoal,
-      value,
+      value: Number(existing.value ?? value),
     };
   }
 
-  const { error: insertError } = await supabase.from("conversions").insert({
-    click_id: clickId,
-    value,
-    event: conversionGoal,
-  });
+  const { data: inserted, error: insertError } = await supabase
+    .from("conversions")
+    .insert({
+      click_id: clickId,
+      value,
+      event: conversionGoal,
+    })
+    .select("id")
+    .maybeSingle();
 
   if (insertError) {
     if (insertError.code === "23505") {
@@ -69,6 +73,15 @@ export async function recordPostback(
       };
     }
     throw new Error("Failed to record conversion");
+  }
+
+  if (!inserted) {
+    return {
+      status: "already_converted",
+      clickId,
+      event: conversionGoal,
+      value,
+    };
   }
 
   return { status: "ok", clickId, event: conversionGoal, value };

@@ -33,6 +33,7 @@ import {
 } from "@/lib/ads";
 import type { CampaignWithMetrics } from "@/lib/campaign-types";
 import { verticalLabel } from "@/lib/campaign-types";
+import { CampaignServerTrackingStatus } from "@/components/campaigns/campaign-server-tracking-status";
 import { estimateDailyResults } from "@/lib/estimates";
 import { cn, formatCurrency, formatNumber, getApiDomain } from "@/lib/utils";
 import {
@@ -763,6 +764,10 @@ export function AdEditorWorkspace({
             </Block>
 
             <Block title="Tracking">
+              <CampaignServerTrackingStatus
+                lastPostbackAt={campaign?.last_postback_at}
+                className="mb-4"
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Conversion goal">
                   <select

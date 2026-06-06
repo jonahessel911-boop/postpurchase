@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Button, Toggle } from "@/components/ui";
 import { MetaStatusBadge } from "@/components/campaigns/meta-badge";
 import { CampaignKpiStrip } from "@/components/campaigns/compact-stats-bar";
+import { CampaignServerTrackingStatus } from "@/components/campaigns/campaign-server-tracking-status";
 import { MetricCell } from "@/components/campaigns/metric-cell";
 import { MediaPreview } from "@/components/campaigns/media-preview";
 import {
@@ -334,6 +335,10 @@ export function CampaignDetailPage({ campaign: initial }: CampaignDetailPageProp
                     : "—",
               },
             ]}
+          />
+          <CampaignServerTrackingStatus
+            lastPostbackAt={campaign.last_postback_at}
+            className="mt-3"
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 self-start">

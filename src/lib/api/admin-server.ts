@@ -142,7 +142,10 @@ function revenueByCampaignFromConversions(
     clicks.map((c) => [c.click_id, c.campaign_id as string])
   );
   const revenue = new Map<string, number>();
+  const seen = new Set<string>();
   for (const conv of conversions) {
+    if (seen.has(conv.click_id)) continue;
+    seen.add(conv.click_id);
     const campaignId = campaignByClick.get(conv.click_id);
     if (!campaignId) continue;
     revenue.set(campaignId, (revenue.get(campaignId) ?? 0) + num(conv.value));
